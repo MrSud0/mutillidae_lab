@@ -1,0 +1,94 @@
+# Purpose: Build local containers for the Mutillidae environment
+
+version: '3.7'
+services:
+
+  database:
+    image: webpwnized/mutillidae:database
+    build:
+        context: ./database
+        dockerfile: Dockerfile
+    networks:
+      - datanet_t2
+
+  database_admin:
+    depends_on:
+      - database
+    image: webpwnized/mutillidae:database_admin
+    build:
+        context: ./database_admin
+        dockerfile: Dockerfile
+    ports:
+      - 127.0.0.1:81:80
+    networks:
+      - datanet_t2
+
+  www:
+    depends_on:
+      - database
+      - directory
+    image: webpwnized/mutillidae:www
+    build:
+        context: ./www
+        dockerfile: Dockerfile
+    ports:
+      - 127.0.0.1:80:80
+      - 127.0.0.1:443:443
+    networks:
+      - datanet_t2
+      - ldapnet_t2
+
+  directory:
+    image: webpwnized/mutillidae:ldap
+    build:
+        context: ./ldap
+        dockerfile: Dockerfile
+    volumes:
+      - ldap_data_t2:/var/lib/ldap
+      - ldap_config_t2:/etc/ldap/slapd.d
+    networks:
+      - ldapnet_t2
+
+  directory_admin:
+    depends_on:
+      - directory
+    image: webpwnized/mutillidae:ldap_admin
+    build:
+        context: ./ldap_admin
+        dockerfile: Dockerfile
+    ports:
+      - 127.0.0.1:82:80
+    networks:
+      - ldapnet_t2
+
+  investigator:
+    image: city-investigator
+    stdin_open: true
+    tty: true
+    build:
+      context: ./investigator
+      dockerfile: Dockerfile
+      args:
+        #KALI_METAPACKAGE: top10
+        KALI_DESKTOP: xfce
+    volumes:
+      - investigator_data_t2:/root
+      - investigator_postgres_t2:/var/lib/postgresql
+    ports:
+      - 127.0.0.1:19020:8080
+      - 127.0.0.1:19025:5900
+      - 127.0.0.1:18889:8000
+    restart: always
+    networks:
+      - datanet_t2
+
+volumes:
+  ldap_data_t2:
+  ldap_config_t2:
+  investigator_data_t2:
+  investigator_postgres_t2:
+
+# Create network segments for the containers to use
+networks:
+    datanet_t2:
+    ldapnet_t2:
